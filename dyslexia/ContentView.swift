@@ -1,4 +1,3 @@
-//
 //  ContentView.swift
 //  dyslexia
 
@@ -6,31 +5,65 @@ import SwiftUI
 import Combine
 
 struct ContentView: View {
-    init(viewModel: AppViewModel) {
-        self._viewModel = ObservedObject(wrappedValue: viewModel)
-    }
-    @ObservedObject private var viewModel: AppViewModel
-    @State private var letters: [Letter] = []
+    @ObservedObject var viewModel: AppViewModel
+    @StateObject private var navCtrl = MyNavigator()
     
     var body: some View {
-        VStack {
-            Button("New") {
-                viewModel.startNewGame()
-            }.buttonStyle(.borderedProminent)
-            Spacer()
-            LetterGroup(letters: $letters) { arr in
-                let z = arr.prettyPrint()
-                print("Rearrange \(z)")
-                viewModel.rearrange(to: arr)
+        NavigationStack(path: $navCtrl.navPath) {
+            VStack(spacing: 20) {
+                HStack {
+                    Button("History") { navCtrl.navPath.append(Route.history) }
+                    Button("Settings") { navCtrl.navPath.append(Route.setting) }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(viewModel.letterBackgroundColor)
+                
+                HStack(spacing: 40) {
+                    Text("Moves: \(viewModel.moveCount)")
+                    Text("Time: \(Int(viewModel.elapsedTime))s")
+                }
+                .font(.subheadline)
+                .fontWeight(.medium)
+                
+                Spacer()
+                
+                
+                LetterGroup(letters: $viewModel.letters, backgroundColor: viewModel.letterBackgroundColor, isSolved: viewModel.isSolved) { rearrangedArray in
+                    viewModel.rearrange(to: rearrangedArray)
+                }
+                
+                Spacer()
+            
+                if viewModel.isSolved {
+                    VStack {
+                        Text("Congratulations!")
+                        Text("Total Moves: \(viewModel.moveCount)")
+                        Text("Time: \(Int(viewModel.elapsedTime)) seconds")
+                    }
+                    .foregroundColor(.red)
+                    .font(.system(size: 20, weight: .bold))
+                    .multilineTextAlignment(.center)
+                }
+                
+                Button("New Game") {
+                    viewModel.startNewGame()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(viewModel.letterBackgroundColor)
             }
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-        .background(.yellow)
-        .onReceive(viewModel.$letters) { newValue in
-            print("New word in content view")
-            letters = newValue
+            .padding()
+            .background(viewModel.letterBackgroundColor.opacity(0.4))
+            .navigationTitle("Dyslexia")
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .setting:
+                    SettingView(navCtrl: navCtrl, viewModel: viewModel)
+                case .history:
+                    HistoryView(viewModel: viewModel, navCtrl: navCtrl)
+                case .selected:
+                    SelectedView(navCtrl: navCtrl, viewModel: viewModel)
+                }
+            }
         }
     }
 }
